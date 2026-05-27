@@ -10,7 +10,7 @@ import RequestDetailInline from '../components/RequestDetail'
 const providerColors: Record<string, string> = {
   openai: 'green',
   anthropic: 'purple',
-  jdcloud: 'blue',
+  openai_responses: 'blue',
 }
 
 function statusBadge(code: number) {
