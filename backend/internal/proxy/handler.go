@@ -191,6 +191,12 @@ func (h *Handler) forwardNonStream(
 
 	usage := extractUsageFromResponse(respBodyMap, epType)
 
+	// capture response headers for storage
+	storedRespHeaders := make(map[string]string)
+	for k, vals := range resp.Header {
+		storedRespHeaders[k] = strings.Join(vals, ", ")
+	}
+
 	// write response to client
 	for k, vals := range resp.Header {
 		for _, v := range vals {
@@ -217,6 +223,7 @@ func (h *Handler) forwardNonStream(
 			RequestHeaders:   storedHeaders,
 			RequestBody:      reqBodyMap,
 			StatusCode:       resp.StatusCode,
+			ResponseHeaders:  storedRespHeaders,
 			ResponseBody:     respInterface,
 			Model:            modelName,
 			PromptTokens:     usage.Prompt,
@@ -287,6 +294,12 @@ func (h *Handler) forwardStream(
 	dur := time.Since(start).Milliseconds()
 	bufSnapshot := buf.Bytes()
 
+	// capture response headers for storage
+	storedRespHeaders := make(map[string]string)
+	for k, vals := range resp.Header {
+		storedRespHeaders[k] = strings.Join(vals, ", ")
+	}
+
 	go func() {
 		respBody, usage := parseSSEBufferByType(bufSnapshot, epType)
 		var respInterface interface{} = respBody
@@ -303,6 +316,7 @@ func (h *Handler) forwardStream(
 			RequestHeaders:   storedHeaders,
 			RequestBody:      reqBodyMap,
 			StatusCode:       resp.StatusCode,
+			ResponseHeaders:  storedRespHeaders,
 			ResponseBody:     respInterface,
 			Model:            modelName,
 			PromptTokens:     usage.Prompt,

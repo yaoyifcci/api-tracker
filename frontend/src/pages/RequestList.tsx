@@ -177,7 +177,7 @@ export default function RequestList() {
       title: '状态',
       dataIndex: 'status_code',
       width: 72,
-      render: (v: number) => statusBadge(v),
+      render: (v: number) => <span style={{ whiteSpace: 'nowrap' }}>{statusBadge(v)}</span>,
     },
     {
       title: 'Tokens',
@@ -210,7 +210,7 @@ export default function RequestList() {
   return (
     <div style={{ padding: '10px 16px' }}>
       <Space style={{ marginBottom: 8 }}>
-        <Typography.Title heading={6} style={{ margin: 0 }}>AI Trace</Typography.Title>
+        <Typography.Title heading={6} style={{ margin: 0 }}>API Tracker</Typography.Title>
         <Button
           size="small"
           icon={<IconRefresh />}

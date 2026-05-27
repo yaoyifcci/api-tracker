@@ -287,18 +287,36 @@ export default function RequestDetailInline({ id }: Props) {
         </Col>
       </Row>
 
-      <Collapse bordered={false} style={{ background: '#fff', marginTop: 4 }}>
-        <CollapseItem header="请求头" name="headers">
-          <div style={{ maxHeight: 200, overflow: 'auto' }}>
-            {Object.entries(detail.req_headers || {}).map(([k, v]) => (
-              <div key={k} style={{ display: 'flex', gap: 8, padding: '2px 0', fontSize: 12 }}>
-                <span style={{ color: '#86909c', minWidth: 160, flexShrink: 0 }}>{k}</span>
-                <span style={{ wordBreak: 'break-all' }}>{v}</span>
+      <Row gutter={8} style={{ marginTop: 4 }}>
+        <Col span={12}>
+          <Collapse bordered={false} style={{ background: '#fff' }}>
+            <CollapseItem header="请求头" name="req-headers">
+              <div style={{ maxHeight: 200, overflow: 'auto' }}>
+                {Object.entries(detail.req_headers || {}).map(([k, v]) => (
+                  <div key={k} style={{ display: 'flex', gap: 8, padding: '2px 0', fontSize: 12 }}>
+                    <span style={{ color: '#86909c', minWidth: 160, flexShrink: 0 }}>{k}</span>
+                    <span style={{ wordBreak: 'break-all' }}>{v}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </CollapseItem>
-      </Collapse>
+            </CollapseItem>
+          </Collapse>
+        </Col>
+        <Col span={12}>
+          <Collapse bordered={false} style={{ background: '#fff' }}>
+            <CollapseItem header="响应头" name="resp-headers">
+              <div style={{ maxHeight: 200, overflow: 'auto' }}>
+                {Object.entries(detail.resp_headers || {}).map(([k, v]) => (
+                  <div key={k} style={{ display: 'flex', gap: 8, padding: '2px 0', fontSize: 12 }}>
+                    <span style={{ color: '#86909c', minWidth: 160, flexShrink: 0 }}>{k}</span>
+                    <span style={{ wordBreak: 'break-all' }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            </CollapseItem>
+          </Collapse>
+        </Col>
+      </Row>
 
       {/* Message content modal */}
       <Modal

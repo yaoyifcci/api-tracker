@@ -12,6 +12,7 @@ type APIRequest struct {
 	RequestHeaders   map[string]string `bson:"req_headers"       json:"req_headers"`
 	RequestBody      interface{}       `bson:"req_body"          json:"req_body"`
 	StatusCode       int               `bson:"status_code"       json:"status_code"`
+	ResponseHeaders  map[string]string `bson:"resp_headers"      json:"resp_headers"`
 	ResponseBody     interface{}       `bson:"resp_body"         json:"resp_body"`
 	Model            string            `bson:"model"             json:"model"`
 	PromptTokens     int               `bson:"prompt_tokens"     json:"prompt_tokens"`

@@ -28,6 +28,7 @@ export interface APIRequestDetail extends APIRequestSummary {
   method: string
   path: string
   req_headers: Record<string, string>
+  resp_headers: Record<string, string>
 }
 
 export interface ListResponse {
