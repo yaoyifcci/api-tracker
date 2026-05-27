@@ -1,0 +1,22 @@
+# Copy this file to config.local.yaml and fill in your API keys.
+# config.local.yaml is gitignored and never committed.
+#
+# Endpoints listed here are merged into config.yaml by name.
+# If the name doesn't exist in config.yaml it will be appended as a new endpoint.
+# You only need to list endpoints you have keys for.
+endpoints:
+
+  - name: openai
+    url: https://api.openai.com
+    type: openai
+    key: YOUR_OPENAI_KEY_HERE
+
+  - name: openai-responses
+    url: https://api.openai.com
+    type: openai_responses
+    key: YOUR_OPENAI_KEY_HERE
+
+  - name: anthropic
+    url: https://api.anthropic.com
+    type: anthropic
+    key: YOUR_ANTHROPIC_KEY_HERE

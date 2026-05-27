@@ -1,0 +1,14 @@
+# secrets & local overrides
+backend/config.local.yaml
+*.local.yaml
+.env
+
+# binaries
+backend/aitrace-server
+
+# frontend
+frontend/node_modules/
+frontend/dist/
+
+# misc
+.DS_Store
