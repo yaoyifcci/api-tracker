@@ -1,7 +1,5 @@
 proxy_port: 8080
 mongodb_uri: mongodb://localhost:27017
 mongodb_db: api-tracker
-default_endpoint: openai
-default_anthropic_endpoint: openai
-# default_openai_responses_endpoint: openai-responses
+default_endpoint: anthropic
 endpoints: []

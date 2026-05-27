@@ -19,49 +19,6 @@ function statusBadge(code: number) {
   return <Badge status="error" text={String(code)} />
 }
 
-function extractLastUserMessage(reqBody: unknown): string {
-  if (!reqBody || typeof reqBody !== 'object') return ''
-  const body = reqBody as Record<string, unknown>
-  const messages = body.messages
-  if (!Array.isArray(messages)) return ''
-  const userMsgs = messages.filter(
-    (m: unknown) => m && typeof m === 'object' && (m as Record<string, unknown>).role === 'user'
-  )
-  if (userMsgs.length === 0) return ''
-  const last = userMsgs[userMsgs.length - 1] as Record<string, unknown>
-  const content = last.content
-  if (typeof content === 'string') return content
-  if (Array.isArray(content)) {
-    const textPart = content.find(
-      (p: unknown) => p && typeof p === 'object' && (p as Record<string, unknown>).type === 'text'
-    ) as Record<string, unknown> | undefined
-    if (textPart) return String(textPart.text ?? '')
-  }
-  return JSON.stringify(content)
-}
-
-function extractAssistantResponse(respBody: unknown): string {
-  if (!respBody || typeof respBody !== 'object') return ''
-  const body = respBody as Record<string, unknown>
-
-  // OpenAI chat completions: choices[0].message.content
-  if (Array.isArray(body.choices) && body.choices.length > 0) {
-    const choice = body.choices[0] as Record<string, unknown>
-    const message = choice.message as Record<string, unknown> | undefined
-    if (message && typeof message.content === 'string') return message.content
-  }
-
-  // Anthropic aggregated: content[0].text
-  if (Array.isArray(body.content) && body.content.length > 0) {
-    const part = body.content[0] as Record<string, unknown>
-    if (part.type === 'text' && typeof part.text === 'string') return part.text
-  }
-
-  // OpenAI Responses API: content (string)
-  if (typeof body.content === 'string') return body.content
-
-  return ''
-}
 
 const tokenItems = [
   { icon: <IconArrowUp />,      color: '#165dff', key: 'prompt_tokens',     tip: '输入 Tokens' },
@@ -71,25 +28,26 @@ const tokenItems = [
 ] as const
 
 function TokenDisplay({ row }: { row: APIRequestSummary }) {
-  const visible = tokenItems.filter(({ key }) => (row[key] ?? 0) > 0)
-  if (visible.length === 0) return <span style={{ color: '#c9cdd4', fontSize: 12 }}>—</span>
+  const hasAny = tokenItems.some(({ key }) => (row[key] ?? 0) > 0)
+  if (!hasAny) return <span style={{ color: '#c9cdd4', fontSize: 12 }}>—</span>
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {visible.map(({ icon, color, key, tip }) => (
-        <Tooltip key={key} content={tip} position="left">
-          <span style={{ display: 'flex', alignItems: 'center', gap: 3, color, fontSize: 11, cursor: 'default' }}>
-            {icon}
-            <span style={{ fontVariantNumeric: 'tabular-nums' }}>{row[key]}</span>
-          </span>
-        </Tooltip>
-      ))}
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 6px' }}>
+      {tokenItems.map(({ icon, color, key, tip }) => {
+        const val = row[key] ?? 0
+        return (
+          <Tooltip key={key} content={tip} position="left">
+            <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: val > 0 ? color : '#c9cdd4', fontSize: 11, cursor: 'default', whiteSpace: 'nowrap' }}>
+              {icon}
+              <span style={{ fontVariantNumeric: 'tabular-nums' }}>{val}</span>
+            </span>
+          </Tooltip>
+        )
+      })}
     </div>
   )
 }
 
-function PreviewLines({ reqBody, respBody }: { reqBody: unknown; respBody: unknown }) {
-  const question = extractLastUserMessage(reqBody)
-  const answer = extractAssistantResponse(respBody)
+function PreviewLines({ question, answer }: { question: string; answer: string }) {
 
   const lineStyle: React.CSSProperties = {
     overflow: 'hidden',
@@ -208,23 +166,27 @@ export default function RequestList() {
       title: '状态',
       dataIndex: 'status_code',
       width: 72,
+      headerCellStyle: { whiteSpace: 'nowrap' },
       render: (v: number) => <span style={{ whiteSpace: 'nowrap' }}>{statusBadge(v)}</span>,
     },
     {
       title: 'Tokens',
-      width: 80,
+      width: 160,
+      headerCellStyle: { whiteSpace: 'nowrap' },
       render: (_: unknown, row: APIRequestSummary) => <TokenDisplay row={row} />,
     },
     {
       title: '耗时',
       dataIndex: 'duration_ms',
       width: 80,
+      headerCellStyle: { whiteSpace: 'nowrap' },
       render: (v: number) => <span style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{v}ms</span>,
     },
     {
       title: '流式',
       dataIndex: 'is_streaming',
-      width: 52,
+      width: 60,
+      headerCellStyle: { whiteSpace: 'nowrap' },
       render: (v: boolean) => (
         <span style={{ whiteSpace: 'nowrap' }}>
           <Tag color={v ? 'cyan' : 'gray'} size="small">{v ? 'SSE' : '—'}</Tag>
@@ -235,7 +197,7 @@ export default function RequestList() {
       title: '对话预览',
       minWidth: 200,
       render: (_: unknown, row: APIRequestSummary) => (
-        <PreviewLines reqBody={row.req_body} respBody={row.resp_body} />
+        <PreviewLines question={row.preview_question} answer={row.preview_answer} />
       ),
     },
   ]
@@ -259,7 +221,7 @@ export default function RequestList() {
         loading={loading}
         rowKey="id"
         size="small"
-        scroll={{ x: 874 }}
+        scroll={{ x: 1020 }}
         expandedRowKeys={expandedKeys}
         onExpandedRowsChange={(keys) => setExpandedKeys(keys as string[])}
         expandedRowRender={(record: APIRequestSummary) => (

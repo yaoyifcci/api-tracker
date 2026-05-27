@@ -25,22 +25,18 @@ var hopByHopHeaders = []string{
 }
 
 type Handler struct {
-	endpointMap        map[string]*config.Endpoint
-	defaultEP          *config.Endpoint
-	defaultAnthropicEP *config.Endpoint
-	defaultResponsesEP *config.Endpoint
-	store              *storage.Store
-	client             *http.Client
+	endpointMap map[string]*config.Endpoint
+	defaultEP   *config.Endpoint
+	store       *storage.Store
+	client      *http.Client
 }
 
 func NewHandler(cfg *config.Config, store *storage.Store) *Handler {
 	return &Handler{
-		endpointMap:        cfg.EndpointMap(),
-		defaultEP:          cfg.DefaultEndpoint(),
-		defaultAnthropicEP: cfg.EndpointByName(cfg.DefaultAnthropic),
-		defaultResponsesEP: cfg.EndpointByName(cfg.DefaultOpenAIResponses),
-		store:              store,
-		client:             &http.Client{Timeout: 120 * time.Second},
+		endpointMap: cfg.EndpointMap(),
+		defaultEP:   cfg.DefaultEndpoint(),
+		store:       store,
+		client:      &http.Client{Timeout: 120 * time.Second},
 	}
 }
 
@@ -117,6 +113,8 @@ func (h *Handler) Handle(c *gin.Context) {
 	for _, h := range hopByHopHeaders {
 		outReq.Header.Del(h)
 	}
+	// let Go's transport handle compression transparently; explicit Accept-Encoding blocks auto-decompress
+	outReq.Header.Del("Accept-Encoding")
 	outReq.Host = outReq.URL.Host
 
 	// capture headers for storage — mask key values
@@ -148,18 +146,9 @@ func (h *Handler) resolveEndpoint(c *gin.Context) (*config.Endpoint, string) {
 		return ep, c.Param("path")
 	}
 
-	// /v1/*path — explicit path matching only, no default fallback
+	// /v1/*path — all paths go to the single default endpoint
 	upstreamPath := "/v1" + c.Param("path")
-	switch {
-	case strings.HasPrefix(upstreamPath, "/v1/chat/completions"):
-		return h.defaultEP, upstreamPath
-	case strings.HasPrefix(upstreamPath, "/v1/messages"):
-		return h.defaultAnthropicEP, upstreamPath
-	case strings.HasPrefix(upstreamPath, "/v1/responses"):
-		return h.defaultResponsesEP, upstreamPath
-	default:
-		return nil, ""
-	}
+	return h.defaultEP, upstreamPath
 }
 
 func (h *Handler) forwardNonStream(
@@ -208,6 +197,8 @@ func (h *Handler) forwardNonStream(
 
 	// async store
 	dur := time.Since(start).Milliseconds()
+	previewQ := extractPreviewQuestion(reqBodyMap)
+	previewA := extractPreviewAnswer(respBodyMap)
 	go func() {
 		var respInterface interface{} = respBodyMap
 		if respInterface == nil {
@@ -233,6 +224,8 @@ func (h *Handler) forwardNonStream(
 			CacheWriteTokens: usage.CacheWrite,
 			DurationMS:       dur,
 			IsStreaming:      false,
+			PreviewQuestion:  previewQ,
+			PreviewAnswer:    previewA,
 		})
 	}()
 }
@@ -300,6 +293,7 @@ func (h *Handler) forwardStream(
 		storedRespHeaders[k] = strings.Join(vals, ", ")
 	}
 
+	previewQ := extractPreviewQuestion(reqBodyMap)
 	go func() {
 		respBody, usage := parseSSEBufferByType(bufSnapshot, epType)
 		var respInterface interface{} = respBody
@@ -326,6 +320,8 @@ func (h *Handler) forwardStream(
 			CacheWriteTokens: usage.CacheWrite,
 			DurationMS:       dur,
 			IsStreaming:      true,
+			PreviewQuestion:  previewQ,
+			PreviewAnswer:    extractPreviewAnswer(respBody),
 		})
 	}()
 }

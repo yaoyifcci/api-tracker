@@ -11,8 +11,8 @@ export interface APIRequestSummary {
   cache_write_tokens: number
   duration_ms: number
   is_streaming: boolean
-  req_body: unknown
-  resp_body: unknown
+  preview_question: string
+  preview_answer: string
 }
 
 export interface StatsResponse {
@@ -27,6 +27,8 @@ export interface APIRequestDetail extends APIRequestSummary {
   target_url: string
   method: string
   path: string
+  req_body: unknown
+  resp_body: unknown
   req_headers: Record<string, string>
   resp_headers: Record<string, string>
 }

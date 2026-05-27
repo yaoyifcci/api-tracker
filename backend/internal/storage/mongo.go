@@ -45,11 +45,30 @@ func (s *Store) Save(ctx context.Context, r *model.APIRequest) error {
 	return err
 }
 
+// RequestSummary is the lightweight type returned by the list endpoint.
+// Heavy fields (req_body, resp_body, headers) are excluded via projection.
+type RequestSummary struct {
+	ID               string    `bson:"_id"               json:"id"`
+	Timestamp        time.Time `bson:"timestamp"         json:"timestamp"`
+	Provider         string    `bson:"provider"          json:"provider"`
+	Model            string    `bson:"model"             json:"model"`
+	StatusCode       int       `bson:"status_code"       json:"status_code"`
+	PromptTokens     int       `bson:"prompt_tokens"     json:"prompt_tokens"`
+	CompletionTokens int       `bson:"completion_tokens" json:"completion_tokens"`
+	TotalTokens      int       `bson:"total_tokens"      json:"total_tokens"`
+	CacheReadTokens  int       `bson:"cache_read_tokens"  json:"cache_read_tokens"`
+	CacheWriteTokens int       `bson:"cache_write_tokens" json:"cache_write_tokens"`
+	DurationMS       int64     `bson:"duration_ms"       json:"duration_ms"`
+	IsStreaming      bool      `bson:"is_streaming"      json:"is_streaming"`
+	PreviewQuestion  string    `bson:"preview_question"  json:"preview_question"`
+	PreviewAnswer    string    `bson:"preview_answer"    json:"preview_answer"`
+}
+
 type ListResult struct {
-	Data  []model.APIRequest `json:"data"`
-	Total int64              `json:"total"`
-	Page  int                `json:"page"`
-	Limit int                `json:"limit"`
+	Data  []RequestSummary `json:"data"`
+	Total int64            `json:"total"`
+	Page  int              `json:"page"`
+	Limit int              `json:"limit"`
 }
 
 func (s *Store) List(ctx context.Context, page, limit int) (*ListResult, error) {
@@ -63,20 +82,30 @@ func (s *Store) List(ctx context.Context, page, limit int) (*ListResult, error) 
 	if err != nil {
 		return nil, err
 	}
+	projection := bson.D{
+		{Key: "req_body", Value: 0},
+		{Key: "resp_body", Value: 0},
+		{Key: "req_headers", Value: 0},
+		{Key: "resp_headers", Value: 0},
+		{Key: "target_url", Value: 0},
+		{Key: "method", Value: 0},
+		{Key: "path", Value: 0},
+	}
 	opts := options.Find().
 		SetSort(bson.D{{Key: "timestamp", Value: -1}}).
 		SetSkip(int64((page - 1) * limit)).
-		SetLimit(int64(limit))
+		SetLimit(int64(limit)).
+		SetProjection(projection)
 	cursor, err := s.coll.Find(ctx, bson.D{}, opts)
 	if err != nil {
 		return nil, err
 	}
-	var items []model.APIRequest
+	var items []RequestSummary
 	if err := cursor.All(ctx, &items); err != nil {
 		return nil, err
 	}
 	if items == nil {
-		items = []model.APIRequest{}
+		items = []RequestSummary{}
 	}
 	return &ListResult{Data: items, Total: total, Page: page, Limit: limit}, nil
 }

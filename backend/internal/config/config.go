@@ -33,13 +33,11 @@ func (e *Endpoint) ResolvedType() string {
 }
 
 type Config struct {
-	ProxyPort              int        `yaml:"proxy_port"`
-	MongoURI               string     `yaml:"mongodb_uri"`
-	MongoDB                string     `yaml:"mongodb_db"`
-	Default                string     `yaml:"default_endpoint"`
-	DefaultAnthropic       string     `yaml:"default_anthropic_endpoint"`
-	DefaultOpenAIResponses string     `yaml:"default_openai_responses_endpoint"`
-	Endpoints              []Endpoint `yaml:"endpoints"`
+	ProxyPort int        `yaml:"proxy_port"`
+	MongoURI  string     `yaml:"mongodb_uri"`
+	MongoDB   string     `yaml:"mongodb_db"`
+	Default   string     `yaml:"default_endpoint"`
+	Endpoints []Endpoint `yaml:"endpoints"`
 }
 
 // Load merges: config.yaml → <base>.local.yaml → environment variables.
@@ -137,12 +135,6 @@ func applyEnv(cfg *Config) {
 	}
 	if v := os.Getenv("APITRACKER_DEFAULT_ENDPOINT"); v != "" {
 		cfg.Default = v
-	}
-	if v := os.Getenv("APITRACKER_DEFAULT_ANTHROPIC_ENDPOINT"); v != "" {
-		cfg.DefaultAnthropic = v
-	}
-	if v := os.Getenv("APITRACKER_DEFAULT_OPENAI_RESPONSES_ENDPOINT"); v != "" {
-		cfg.DefaultOpenAIResponses = v
 	}
 	for i, ep := range cfg.Endpoints {
 		prefix := "APITRACKER_ENDPOINT_" + normalizeEnvName(ep.Name)

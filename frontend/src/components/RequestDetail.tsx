@@ -193,6 +193,16 @@ export default function RequestDetailInline({ id }: Props) {
     const ns = (s.namespace ?? []).filter((x): x is string | number => x !== null && x !== undefined)
     if (s.name !== null && s.name !== undefined) ns.push(s.name as string | number)
 
+    const body = detail.req_body as Record<string, unknown> | undefined
+
+    // system field (top-level, Anthropic style)
+    if (ns[0] === 'system') {
+      const content = extractContent(body?.system)
+      if (!content) return
+      setMsgModal({ role: 'system', content })
+      return
+    }
+
     const messagesIdx = ns.indexOf('messages')
     if (messagesIdx === -1) return
 
@@ -202,7 +212,6 @@ export default function RequestDetailInline({ id }: Props) {
     const msgIdx = typeof rawIdx === 'number' ? rawIdx : parseInt(String(rawIdx), 10)
     if (isNaN(msgIdx)) return
 
-    const body = detail.req_body as Record<string, unknown> | undefined
     const messages = body?.messages as Record<string, unknown>[] | undefined
     const msg = messages?.[msgIdx]
     if (!msg) return
@@ -226,11 +235,14 @@ export default function RequestDetailInline({ id }: Props) {
     { label: '状态码', value: <Tag color={statusColor(detail.status_code)} size="small">{detail.status_code}</Tag> },
     { label: '流式', value: <Tag color={detail.is_streaming ? 'cyan' : 'gray'} size="small">{detail.is_streaming ? '是' : '否'}</Tag> },
     { label: '耗时', value: `${detail.duration_ms} ms` },
-    { label: 'Prompt Token', value: detail.prompt_tokens },
-    { label: 'Completion Token', value: detail.completion_tokens },
+    { label: '输入 Token', value: detail.prompt_tokens },
+    { label: '补全 Token', value: detail.completion_tokens },
     { label: '总 Token', value: detail.total_tokens },
+    ...(detail.cache_read_tokens !== undefined ? [{ label: '缓存读 Token', value: detail.cache_read_tokens }] : []),
+    ...(detail.cache_write_tokens !== undefined ? [{ label: '缓存写 Token', value: detail.cache_write_tokens }] : []),
     {
       label: '目标 URL',
+      span: 2,
       value: (
         <Typography.Text copyable style={{ fontSize: 12, wordBreak: 'break-all' }}>
           {detail.target_url}
@@ -245,16 +257,16 @@ export default function RequestDetailInline({ id }: Props) {
         data={metaData}
         border
         size="small"
-        column={4}
-        style={{ marginBottom: 8 }}
-        labelStyle={{ fontSize: 12, color: '#86909c', padding: '4px 8px' }}
+        column={3}
+        style={{ marginBottom: 8, width: '100%' }}
+        labelStyle={{ fontSize: 12, color: '#86909c', padding: '4px 8px', width: 88, whiteSpace: 'nowrap' }}
         valueStyle={{ fontSize: 12, padding: '4px 8px' }}
       />
 
       <Row gutter={8}>
         <Col span={12}>
           <Collapse bordered={false} style={{ background: '#fff' }}>
-            <CollapseItem header="请求体（点击 messages 中的条目可预览内容）" name="req">
+            <CollapseItem header="请求体（点击 system 或 messages 条目可预览内容）" name="req">
               <div style={{ maxHeight: 380, overflow: 'auto' }}>
                 <ReactJsonView
                   src={detail.req_body as object || {}}

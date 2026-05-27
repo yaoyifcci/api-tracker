@@ -299,3 +299,84 @@ func parseOpenAIResponsesSSEBuffer(buf []byte) (map[string]interface{}, UsageInf
 
 	return respBody, u
 }
+
+// extractPreviewQuestion returns the last user message text from a request body.
+func extractPreviewQuestion(body map[string]interface{}) string {
+	if body == nil {
+		return ""
+	}
+	messages, ok := body["messages"].([]interface{})
+	if !ok {
+		return ""
+	}
+	var lastUser map[string]interface{}
+	for _, m := range messages {
+		msg, ok := m.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if msg["role"] == "user" {
+			lastUser = msg
+		}
+	}
+	if lastUser == nil {
+		return ""
+	}
+	return extractTextContent(lastUser["content"])
+}
+
+// extractPreviewAnswer returns the assistant response text from a response body.
+func extractPreviewAnswer(body map[string]interface{}) string {
+	if body == nil {
+		return ""
+	}
+	// OpenAI chat: choices[0].message.content
+	if choices, ok := body["choices"].([]interface{}); ok && len(choices) > 0 {
+		if choice, ok := choices[0].(map[string]interface{}); ok {
+			if msg, ok := choice["message"].(map[string]interface{}); ok {
+				if s, ok := msg["content"].(string); ok {
+					return s
+				}
+			}
+		}
+	}
+	// Anthropic: content[0].text
+	if content, ok := body["content"].([]interface{}); ok && len(content) > 0 {
+		if part, ok := content[0].(map[string]interface{}); ok {
+			if part["type"] == "text" {
+				if s, ok := part["text"].(string); ok {
+					return s
+				}
+			}
+		}
+	}
+	// OpenAI Responses: content (string)
+	if s, ok := body["content"].(string); ok {
+		return s
+	}
+	return ""
+}
+
+func extractTextContent(content interface{}) string {
+	if s, ok := content.(string); ok {
+		return s
+	}
+	if arr, ok := content.([]interface{}); ok {
+		for _, p := range arr {
+			part, ok := p.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if part["type"] == "text" {
+				if s, ok := part["text"].(string); ok {
+					return s
+				}
+			}
+		}
+	}
+	if content == nil {
+		return ""
+	}
+	b, _ := json.Marshal(content)
+	return string(b)
+}
