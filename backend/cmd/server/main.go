@@ -7,10 +7,10 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/yaoyi/aitrace/internal/api"
-	"github.com/yaoyi/aitrace/internal/config"
-	"github.com/yaoyi/aitrace/internal/proxy"
-	"github.com/yaoyi/aitrace/internal/storage"
+	"github.com/yaoyifcci/api-tracker/internal/api"
+	"github.com/yaoyifcci/api-tracker/internal/config"
+	"github.com/yaoyifcci/api-tracker/internal/proxy"
+	"github.com/yaoyifcci/api-tracker/internal/storage"
 )
 
 func main() {
@@ -59,7 +59,7 @@ func main() {
 	}
 
 	addr := fmt.Sprintf(":%d", cfg.ProxyPort)
-	log.Printf("aitrace proxy listening on %s", addr)
+	log.Printf("api-tracker proxy listening on %s", addr)
 	if err := r.Run(addr); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("server error: %v", err)
 	}

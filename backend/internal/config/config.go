@@ -63,7 +63,7 @@ func Load(path string) (*Config, error) {
 		cfg.MongoURI = "mongodb://localhost:27017"
 	}
 	if cfg.MongoDB == "" {
-		cfg.MongoDB = "aitrace"
+		cfg.MongoDB = "api-tracker"
 	}
 	return cfg, nil
 }
@@ -124,28 +124,28 @@ func normalizeEnvName(name string) string {
 
 // applyEnv reads AITRACE_* environment variables and overlays them (highest priority).
 func applyEnv(cfg *Config) {
-	if v := os.Getenv("AITRACE_PROXY_PORT"); v != "" {
+	if v := os.Getenv("APITRACKER_PROXY_PORT"); v != "" {
 		if p, err := strconv.Atoi(v); err == nil {
 			cfg.ProxyPort = p
 		}
 	}
-	if v := os.Getenv("AITRACE_MONGO_URI"); v != "" {
+	if v := os.Getenv("APITRACKER_MONGO_URI"); v != "" {
 		cfg.MongoURI = v
 	}
-	if v := os.Getenv("AITRACE_MONGO_DB"); v != "" {
+	if v := os.Getenv("APITRACKER_MONGO_DB"); v != "" {
 		cfg.MongoDB = v
 	}
-	if v := os.Getenv("AITRACE_DEFAULT_ENDPOINT"); v != "" {
+	if v := os.Getenv("APITRACKER_DEFAULT_ENDPOINT"); v != "" {
 		cfg.Default = v
 	}
-	if v := os.Getenv("AITRACE_DEFAULT_ANTHROPIC_ENDPOINT"); v != "" {
+	if v := os.Getenv("APITRACKER_DEFAULT_ANTHROPIC_ENDPOINT"); v != "" {
 		cfg.DefaultAnthropic = v
 	}
-	if v := os.Getenv("AITRACE_DEFAULT_OPENAI_RESPONSES_ENDPOINT"); v != "" {
+	if v := os.Getenv("APITRACKER_DEFAULT_OPENAI_RESPONSES_ENDPOINT"); v != "" {
 		cfg.DefaultOpenAIResponses = v
 	}
 	for i, ep := range cfg.Endpoints {
-		prefix := "AITRACE_ENDPOINT_" + normalizeEnvName(ep.Name)
+		prefix := "APITRACKER_ENDPOINT_" + normalizeEnvName(ep.Name)
 		if v := os.Getenv(prefix + "_KEY"); v != "" {
 			cfg.Endpoints[i].Key = v
 		}

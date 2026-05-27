@@ -1,4 +1,4 @@
-module github.com/yaoyi/aitrace
+module github.com/yaoyifcci/api-tracker
 
 go 1.26
 

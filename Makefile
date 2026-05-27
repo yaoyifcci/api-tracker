@@ -1,7 +1,7 @@
 .PHONY: build up down dev
 
 build:
-	cd backend && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o aitrace-server ./cmd/server
+	cd backend && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o api-tracker-server ./cmd/server
 
 up:
 	docker compose up --build -d

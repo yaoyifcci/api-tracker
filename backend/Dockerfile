@@ -3,10 +3,10 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o aitrace-server ./cmd/server/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o api-tracker-server ./cmd/server/main.go
 
 FROM --platform=linux/amd64 alpine:3.20
 WORKDIR /app
-COPY --from=builder /app/aitrace-server .
+COPY --from=builder /app/api-tracker-server .
 EXPOSE 8080
-CMD ["./aitrace-server"]
+CMD ["./api-tracker-server"]

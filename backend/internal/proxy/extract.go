@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/yaoyi/aitrace/internal/config"
+	"github.com/yaoyifcci/api-tracker/internal/config"
 )
 
 // UsageInfo holds token counts extracted from a response.

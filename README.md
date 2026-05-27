@@ -1,4 +1,4 @@
-# AI Trace
+# API Tracker
 
 A self-hosted AI API proxy that intercepts, records, and displays requests to OpenAI / Anthropic / any compatible endpoint.
 
@@ -51,12 +51,8 @@ Defines endpoints with URL and type. **No keys here.**
 ```yaml
 proxy_port: 8080
 mongodb_uri: mongodb://localhost:27017
-mongodb_db: aitrace
+mongodb_db: api-tracker
 endpoints:
-  - name: jdcloud
-    url: https://modelservice.jdcloud.com
-    type: openai
-    default: true
   - name: openai
     url: https://api.openai.com
     type: openai
@@ -77,7 +73,7 @@ endpoints:
 
 Priority (highest → lowest):
 
-1. **Environment variables** — `AITRACE_ENDPOINT_{NAME}_KEY` (e.g. `AITRACE_ENDPOINT_JDCLOUD_KEY`)
+1. **Environment variables** — `APITRACKER_ENDPOINT_{NAME}_KEY` (e.g. `APITRACKER_ENDPOINT_OPENAI_KEY`)
 2. **`backend/config.local.yaml`** — gitignored, for local development
 3. **`backend/config.yaml`** — base config, no secrets
 
@@ -85,11 +81,11 @@ Priority (highest → lowest):
 
 | Variable | Description |
 |----------|-------------|
-| `AITRACE_PROXY_PORT` | Proxy listen port (default: 8080) |
-| `AITRACE_MONGO_URI` | MongoDB connection string |
-| `AITRACE_MONGO_DB` | MongoDB database name |
-| `AITRACE_ENDPOINT_{NAME}_KEY` | API key for named endpoint |
-| `AITRACE_ENDPOINT_{NAME}_URL` | Override URL for named endpoint |
+| `APITRACKER_PROXY_PORT` | Proxy listen port (default: 8080) |
+| `APITRACKER_MONGO_URI` | MongoDB connection string |
+| `APITRACKER_MONGO_DB` | MongoDB database name |
+| `APITRACKER_ENDPOINT_{NAME}_KEY` | API key for named endpoint |
+| `APITRACKER_ENDPOINT_{NAME}_URL` | Override URL for named endpoint |
 
 Name normalization: `openai-responses` → `OPENAI_RESPONSES`.
 
@@ -97,8 +93,10 @@ Name normalization: `openai-responses` → `OPENAI_RESPONSES`.
 
 | Route | Behavior |
 |-------|----------|
-| `/v1/*` | Forward to the `default: true` endpoint |
-| `/{name}/*` | Forward to the named endpoint (e.g. `/jdcloud/v1/chat/completions`) |
+| `/v1/chat/completions` | Forward to `default_endpoint` |
+| `/v1/messages` | Forward to `default_anthropic_endpoint` |
+| `/v1/responses` | Forward to `default_openai_responses_endpoint` |
+| `/{name}/*` | Forward to the named endpoint |
 
 The client does not need to send an Authorization header — the proxy injects the configured key.
 

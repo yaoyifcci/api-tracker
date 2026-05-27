@@ -13,9 +13,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/yaoyi/aitrace/internal/config"
-	"github.com/yaoyi/aitrace/internal/model"
-	"github.com/yaoyi/aitrace/internal/storage"
+	"github.com/yaoyifcci/api-tracker/internal/config"
+	"github.com/yaoyifcci/api-tracker/internal/model"
+	"github.com/yaoyifcci/api-tracker/internal/storage"
 )
 
 var hopByHopHeaders = []string{

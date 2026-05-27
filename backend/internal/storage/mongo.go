@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/yaoyi/aitrace/internal/model"
+	"github.com/yaoyifcci/api-tracker/internal/model"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"

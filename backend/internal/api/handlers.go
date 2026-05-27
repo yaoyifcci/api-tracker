@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yaoyi/aitrace/internal/storage"
+	"github.com/yaoyifcci/api-tracker/internal/storage"
 )
 
 type API struct {

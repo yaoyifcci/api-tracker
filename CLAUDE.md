@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AI Trace is a self-hosted AI API proxy that intercepts requests to OpenAI/Anthropic/compatible endpoints, stores them in MongoDB, and provides a React frontend for browsing history with token analytics.
+API Tracker is a self-hosted AI API proxy that intercepts requests to OpenAI/Anthropic/compatible endpoints, stores them in MongoDB, and provides a React frontend for browsing history with token analytics.
 
 ## Commands
 
@@ -17,10 +17,10 @@ AI Trace is a self-hosted AI API proxy that intercepts requests to OpenAI/Anthro
 cd backend
 go run ./cmd/server          # start dev server (reads config.yaml + config.local.yaml)
 go build ./...               # verify compilation
-go build -o aitrace-server ./cmd/server   # build binary
+go build -o api-tracker-server ./cmd/server   # build binary
 
 # cross-compile for Docker (linux/amd64)
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o aitrace-server ./cmd/server
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o api-tracker-server ./cmd/server
 ```
 
 ### Frontend (React + Vite)
@@ -103,7 +103,7 @@ Priority (highest wins): **env vars** → `config.local.yaml` → `config.yaml`
 
 - `config.yaml` — committed to git, no secrets; defines endpoints with URLs and types
 - `config.local.yaml` — gitignored; overlay keys for local development
-- Env vars: `AITRACE_ENDPOINT_{NAME}_KEY`, `AITRACE_ENDPOINT_{NAME}_URL`, `AITRACE_MONGO_URI`, etc.
+- Env vars: `APITRACKER_ENDPOINT_{NAME}_KEY`, `APITRACKER_ENDPOINT_{NAME}_URL`, `APITRACKER_MONGO_URI`, etc.
   - Name normalization: `openai-responses` → `OPENAI_RESPONSES`
 - Default endpoints are set via top-level fields in `config.yaml`:
   - `default_endpoint` — used for `/v1/chat/completions`
