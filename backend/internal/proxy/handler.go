@@ -102,12 +102,14 @@ func (h *Handler) Handle(c *gin.Context) {
 			outReq.Header.Add(key, v)
 		}
 	}
-	// inject configured key — Anthropic uses x-api-key, others use Authorization: Bearer
-	if ep.Key != "" {
-		if epType == config.TypeAnthropic {
+	// inject configured key only when the client did not supply one
+	if epType == config.TypeAnthropic {
+		if outReq.Header.Get("x-api-key") == "" && ep.Key != "" {
 			outReq.Header.Set("x-api-key", ep.Key)
-			outReq.Header.Del("Authorization")
-		} else {
+		}
+		outReq.Header.Del("Authorization")
+	} else {
+		if outReq.Header.Get("Authorization") == "" && ep.Key != "" {
 			outReq.Header.Set("Authorization", "Bearer "+ep.Key)
 		}
 	}
