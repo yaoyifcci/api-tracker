@@ -1,11 +1,14 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Table, Tag, Badge, Button, Space, Typography, Tooltip } from '@arco-design/web-react'
+import { Table, Tag, Badge, Button, Space, Typography, Tooltip, Select, DatePicker } from '@arco-design/web-react'
 import type { TableColumnProps } from '@arco-design/web-react'
 import { IconRefresh, IconArrowUp, IconArrowDown, IconThunderbolt, IconSave } from '@arco-design/web-react/icon'
 import dayjs from 'dayjs'
-import { listRequests } from '../api/client'
-import type { APIRequestSummary } from '../types'
+import { listRequests, listEndpoints } from '../api/client'
+import type { APIRequestSummary, EndpointInfo, ListFilterParams } from '../types'
 import RequestDetailInline from '../components/RequestDetail'
+
+const statusClassOptions = ['2xx', '3xx', '4xx', '5xx'] as const
+const statusCodeOptions = [200, 400, 401, 403, 404, 429, 500, 502, 503]
 
 const providerColors: Record<string, string> = {
   openai: 'green',
@@ -102,17 +105,62 @@ export default function RequestList() {
   const [limit] = useState(20)
   const [loading, setLoading] = useState(false)
   const [expandedKeys, setExpandedKeys] = useState<string[]>([])
+  const [filter, setFilter] = useState<ListFilterParams>({})
+  const [endpoints, setEndpoints] = useState<EndpointInfo[]>([])
+
+  useEffect(() => {
+    listEndpoints().then(setEndpoints).catch(() => setEndpoints([]))
+  }, [])
 
   const fetchData = useCallback(async (p: number) => {
     setLoading(true)
     try {
-      const res = await listRequests(p, limit)
+      const res = await listRequests(p, limit, filter)
       setData(res.data)
       setTotal(res.total)
     } finally {
       setLoading(false)
     }
-  }, [limit])
+  }, [limit, filter])
+
+  const updateFilter = (patch: Partial<ListFilterParams>) => {
+    setFilter(prev => ({ ...prev, ...patch }))
+    setPage(1)
+  }
+
+  const statusValue = filter.status_code
+    ? `code:${filter.status_code}`
+    : filter.status_class
+      ? `class:${filter.status_class}`
+      : undefined
+
+  const onStatusChange = (val?: string) => {
+    if (!val) {
+      updateFilter({ status_code: undefined, status_class: undefined })
+      return
+    }
+    const [kind, raw] = val.split(':')
+    if (kind === 'code') {
+      updateFilter({ status_code: Number(raw), status_class: undefined })
+    } else {
+      updateFilter({ status_code: undefined, status_class: raw as ListFilterParams['status_class'] })
+    }
+  }
+
+  const onRangeChange = (_: unknown, dates: dayjs.Dayjs[] | undefined) => {
+    if (!dates || dates.length < 2) {
+      updateFilter({ start_time: undefined, end_time: undefined })
+      return
+    }
+    updateFilter({ start_time: dates[0].toISOString(), end_time: dates[1].toISOString() })
+  }
+
+  const resetFilter = () => {
+    setFilter({})
+    setPage(1)
+  }
+
+  const hasFilter = Object.values(filter).some(v => v !== undefined && v !== '')
 
   useEffect(() => { fetchData(page) }, [page, fetchData])
 
@@ -214,6 +262,50 @@ export default function RequestList() {
         >
           刷新
         </Button>
+      </Space>
+      <Space wrap style={{ marginBottom: 8 }} size="medium">
+        <Select
+          allowClear
+          size="small"
+          placeholder="全部 Endpoint"
+          style={{ width: 160 }}
+          value={filter.provider}
+          onChange={(v?: string) => updateFilter({ provider: v || undefined })}
+        >
+          {endpoints.map(ep => (
+            <Select.Option key={ep.name} value={ep.name}>{ep.name}</Select.Option>
+          ))}
+        </Select>
+        <Select
+          allowClear
+          size="small"
+          placeholder="全部状态"
+          style={{ width: 150 }}
+          value={statusValue}
+          onChange={onStatusChange}
+        >
+          <Select.OptGroup label="档位">
+            {statusClassOptions.map(c => (
+              <Select.Option key={c} value={`class:${c}`}>{c}</Select.Option>
+            ))}
+          </Select.OptGroup>
+          <Select.OptGroup label="状态码">
+            {statusCodeOptions.map(code => (
+              <Select.Option key={code} value={`code:${code}`}>{code}</Select.Option>
+            ))}
+          </Select.OptGroup>
+        </Select>
+        <DatePicker.RangePicker
+          size="small"
+          showTime
+          format="YYYY-MM-DD HH:mm:ss"
+          style={{ width: 360 }}
+          value={filter.start_time && filter.end_time ? [filter.start_time, filter.end_time] : undefined}
+          onChange={onRangeChange}
+        />
+        {hasFilter && (
+          <Button size="small" type="text" onClick={resetFilter}>重置</Button>
+        )}
       </Space>
       <Table
         columns={columns}

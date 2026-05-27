@@ -39,3 +39,16 @@ export interface ListResponse {
   page: number
   limit: number
 }
+
+export interface ListFilterParams {
+  provider?: string
+  status_code?: number
+  status_class?: '2xx' | '3xx' | '4xx' | '5xx'
+  start_time?: string
+  end_time?: string
+}
+
+export interface EndpointInfo {
+  name: string
+  type: string
+}

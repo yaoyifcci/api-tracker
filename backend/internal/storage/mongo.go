@@ -31,12 +31,17 @@ func NewStore(uri, dbName string) (*Store, error) {
 	return s, nil
 }
 
+// ensureIndexes creates the indexes backing the List filters. Default (auto-generated)
+// index names are used intentionally so that re-declaring an already-existing index
+// (e.g. the legacy {timestamp:-1} / {provider:1} indexes) is an idempotent no-op rather
+// than an IndexKeySpecsConflict that would fail the whole CreateMany batch on upgrade.
 func (s *Store) ensureIndexes() {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	s.coll.Indexes().CreateMany(ctx, []mongo.IndexModel{
 		{Keys: bson.D{{Key: "timestamp", Value: -1}}},
-		{Keys: bson.D{{Key: "provider", Value: 1}}},
+		{Keys: bson.D{{Key: "provider", Value: 1}, {Key: "timestamp", Value: -1}}},
+		{Keys: bson.D{{Key: "status_code", Value: 1}, {Key: "timestamp", Value: -1}}},
 	})
 }
 
@@ -71,14 +76,64 @@ type ListResult struct {
 	Limit int              `json:"limit"`
 }
 
-func (s *Store) List(ctx context.Context, page, limit int) (*ListResult, error) {
+// ListFilter holds optional filtering criteria for List. Zero/empty fields are ignored.
+// StatusCode (exact) takes precedence over StatusClass (range bucket) when both are set.
+type ListFilter struct {
+	Provider    string
+	StatusCode  int
+	StatusClass string // "2xx" / "3xx" / "4xx" / "5xx"
+	StartTime   time.Time
+	EndTime     time.Time
+}
+
+func (f ListFilter) build() bson.D {
+	and := bson.A{}
+	if f.Provider != "" {
+		and = append(and, bson.D{{Key: "provider", Value: f.Provider}})
+	}
+	if f.StatusCode != 0 {
+		and = append(and, bson.D{{Key: "status_code", Value: f.StatusCode}})
+	} else if f.StatusClass != "" {
+		var lo, hi int
+		switch f.StatusClass {
+		case "2xx":
+			lo, hi = 200, 299
+		case "3xx":
+			lo, hi = 300, 399
+		case "4xx":
+			lo, hi = 400, 499
+		case "5xx":
+			lo, hi = 500, 599
+		}
+		if hi > 0 {
+			and = append(and, bson.D{{Key: "status_code", Value: bson.D{{Key: "$gte", Value: lo}, {Key: "$lte", Value: hi}}}})
+		}
+	}
+	if !f.StartTime.IsZero() || !f.EndTime.IsZero() {
+		rng := bson.D{}
+		if !f.StartTime.IsZero() {
+			rng = append(rng, bson.E{Key: "$gte", Value: f.StartTime})
+		}
+		if !f.EndTime.IsZero() {
+			rng = append(rng, bson.E{Key: "$lte", Value: f.EndTime})
+		}
+		and = append(and, bson.D{{Key: "timestamp", Value: rng}})
+	}
+	if len(and) == 0 {
+		return bson.D{}
+	}
+	return bson.D{{Key: "$and", Value: and}}
+}
+
+func (s *Store) List(ctx context.Context, f ListFilter, page, limit int) (*ListResult, error) {
 	if page < 1 {
 		page = 1
 	}
 	if limit < 1 || limit > 100 {
 		limit = 20
 	}
-	total, err := s.coll.CountDocuments(ctx, bson.D{})
+	filter := f.build()
+	total, err := s.coll.CountDocuments(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +151,7 @@ func (s *Store) List(ctx context.Context, page, limit int) (*ListResult, error) 
 		SetSkip(int64((page - 1) * limit)).
 		SetLimit(int64(limit)).
 		SetProjection(projection)
-	cursor, err := s.coll.Find(ctx, bson.D{}, opts)
+	cursor, err := s.coll.Find(ctx, filter, opts)
 	if err != nil {
 		return nil, err
 	}

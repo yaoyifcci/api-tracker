@@ -59,9 +59,9 @@ React frontend (:5173 dev / :3000 Docker)
 | `cmd/server` | Wires config, MongoDB, Gin router |
 | `internal/config` | Three-layer config loading (see below) |
 | `internal/model` | `APIRequest` struct (bson + json tags) |
-| `internal/storage` | MongoDB CRUD + `GetStats()` aggregation |
+| `internal/storage` | MongoDB CRUD + `GetStats()` aggregation; `ListFilter` server-side filtering + `ensureIndexes()` |
 | `internal/proxy` | Manual HTTP + SSE proxy; `UsageInfo` token extraction |
-| `internal/api` | REST handlers: `ListRequests`, `GetRequest`, `GetStats` |
+| `internal/api` | REST handlers: `ListRequests`, `GetRequest`, `GetStats`, `ListEndpoints` |
 
 ### Proxy routes (registered in `main.go`)
 
@@ -124,3 +124,24 @@ Priority (highest wins): **env vars** → `config.local.yaml` → `config.yaml`
 | `GET /api/requests?page=N&limit=N` | Paginated list, sorted by timestamp desc |
 | `GET /api/requests/:id` | Full request detail |
 | `GET /api/stats` | Aggregated token sums across all requests |
+| `GET /api/endpoints` | Configured endpoint names (`{name,type}`) — feeds the frontend filter dropdown |
+
+#### `/api/requests` filter params (server-side, MongoDB)
+
+All optional; omitted/empty params are ignored. Filtering happens in MongoDB via `storage.ListFilter`, not in the frontend.
+
+| Param | Meaning |
+|-------|---------|
+| `provider` | exact endpoint name (matches stored `provider`) |
+| `status_code` | exact HTTP status; **takes precedence** over `status_class` if both sent |
+| `status_class` | bucket `2xx`/`3xx`/`4xx`/`5xx` → `status_code` range query |
+| `start_time` / `end_time` | accepts **Unix milliseconds** or **RFC3339**; `timestamp` `$gte`/`$lte` |
+
+### MongoDB indexes
+
+`storage.ensureIndexes()` is called from `NewStore()` at backend startup, so docker compose first-deploy and upgrades both create/refresh indexes automatically — no manual `mongosh` needed. Indexes use **default (auto-generated) names** on purpose: redeclaring an existing index (e.g. the legacy `timestamp_-1`) becomes an idempotent no-op instead of an `IndexKeySpecsConflict` that would fail the whole `CreateMany` batch on upgrade.
+
+Indexes (follow MongoDB ESR: Equality → Sort → Range):
+- `{timestamp:-1}` — default sort / time-range only
+- `{provider:1, timestamp:-1}` — endpoint filter + sort
+- `{status_code:1, timestamp:-1}` — status filter (exact or range bucket) + sort

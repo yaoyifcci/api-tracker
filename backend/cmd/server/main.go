@@ -26,7 +26,7 @@ func main() {
 	log.Println("connected to MongoDB")
 
 	proxyHandler := proxy.NewHandler(cfg, store)
-	apiHandler := api.NewAPI(store)
+	apiHandler := api.NewAPI(store, cfg)
 
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
@@ -43,6 +43,7 @@ func main() {
 		apiGroup.GET("/requests", apiHandler.ListRequests)
 		apiGroup.GET("/requests/:id", apiHandler.GetRequest)
 		apiGroup.GET("/stats", apiHandler.GetStats)
+		apiGroup.GET("/endpoints", apiHandler.ListEndpoints)
 	}
 
 	// proxy routes — /v1/* uses default endpoint
