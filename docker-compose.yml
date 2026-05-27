@@ -3,7 +3,6 @@ version: '3.9'
 services:
   mongodb:
     image: mongo:7
-    platform: linux/amd64
     ports:
       - "27017:27017"
     volumes:
@@ -19,7 +18,11 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    platform: linux/amd64
+      args:
+        HTTPS_PROXY: ""
+        HTTP_PROXY: ""
+        http_proxy: ""
+        https_proxy: ""
     ports:
       - "8080:8080"
     environment:
@@ -39,6 +42,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        HTTPS_PROXY: ""
+        HTTP_PROXY: ""
+        http_proxy: ""
+        https_proxy: ""
     ports:
       - "3000:80"
     depends_on:

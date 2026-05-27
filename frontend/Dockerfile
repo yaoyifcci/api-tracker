@@ -1,5 +1,11 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
+ARG HTTPS_PROXY=""
+ARG HTTP_PROXY=""
+ARG http_proxy=""
+ARG https_proxy=""
+ENV HTTPS_PROXY=""
+ENV HTTP_PROXY=""
 COPY package*.json ./
 RUN npm ci
 COPY . .
