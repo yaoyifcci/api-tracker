@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Table, Tag, Badge, Button, Space, Typography, Tooltip } from '@arco-design/web-react'
 import type { TableColumnProps } from '@arco-design/web-react'
-import { IconRefresh } from '@arco-design/web-react/icon'
+import { IconRefresh, IconArrowUp, IconArrowDown, IconThunderbolt, IconSave } from '@arco-design/web-react/icon'
 import dayjs from 'dayjs'
 import { listRequests } from '../api/client'
 import type { APIRequestSummary } from '../types'
@@ -61,6 +61,30 @@ function extractAssistantResponse(respBody: unknown): string {
   if (typeof body.content === 'string') return body.content
 
   return ''
+}
+
+const tokenItems = [
+  { icon: <IconArrowUp />,      color: '#165dff', key: 'prompt_tokens',     tip: '输入 Tokens' },
+  { icon: <IconArrowDown />,    color: '#00b42a', key: 'completion_tokens', tip: '补全 Tokens' },
+  { icon: <IconThunderbolt />,  color: '#ff7d00', key: 'cache_read_tokens', tip: '缓存读 Tokens' },
+  { icon: <IconSave />,         color: '#722ed1', key: 'cache_write_tokens',tip: '缓存写 Tokens' },
+] as const
+
+function TokenDisplay({ row }: { row: APIRequestSummary }) {
+  const visible = tokenItems.filter(({ key }) => (row[key] ?? 0) > 0)
+  if (visible.length === 0) return <span style={{ color: '#c9cdd4', fontSize: 12 }}>—</span>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {visible.map(({ icon, color, key, tip }) => (
+        <Tooltip key={key} content={tip} position="left">
+          <span style={{ display: 'flex', alignItems: 'center', gap: 3, color, fontSize: 11, cursor: 'default' }}>
+            {icon}
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>{row[key]}</span>
+          </span>
+        </Tooltip>
+      ))}
+    </div>
+  )
 }
 
 function PreviewLines({ reqBody, respBody }: { reqBody: unknown; respBody: unknown }) {
@@ -181,9 +205,8 @@ export default function RequestList() {
     },
     {
       title: 'Tokens',
-      dataIndex: 'total_tokens',
-      width: 70,
-      render: (v: number) => <span style={{ fontSize: 12 }}>{v || '—'}</span>,
+      width: 80,
+      render: (_: unknown, row: APIRequestSummary) => <TokenDisplay row={row} />,
     },
     {
       title: '耗时',
