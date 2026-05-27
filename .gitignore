@@ -1,6 +1,7 @@
 # secrets & local overrides
 backend/config.local.yaml
 *.local.yaml
+docker-compose.local.yaml
 .env
 
 # binaries

@@ -1,12 +1,6 @@
 FROM golang:1.26-alpine AS builder
 WORKDIR /app
-ARG HTTPS_PROXY=""
-ARG HTTP_PROXY=""
-ARG http_proxy=""
-ARG https_proxy=""
 ENV GOPROXY=https://goproxy.cn,direct
-ENV HTTPS_PROXY=""
-ENV HTTP_PROXY=""
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
