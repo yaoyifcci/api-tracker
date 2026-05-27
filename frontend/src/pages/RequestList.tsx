@@ -176,7 +176,7 @@ export default function RequestList() {
       dataIndex: 'timestamp',
       width: 130,
       render: (v: string) => (
-        <span style={{ fontSize: 12, color: '#4e5969' }}>
+        <span style={{ fontSize: 12, color: '#4e5969', whiteSpace: 'nowrap' }}>
           {dayjs(v).format('MM-DD HH:mm:ss')}
         </span>
       ),
@@ -184,17 +184,24 @@ export default function RequestList() {
     {
       title: 'Endpoint',
       dataIndex: 'provider',
-      width: 90,
+      width: 100,
       render: (v: string) => (
-        <Tag color={providerColors[v] || 'arcoblue'} size="small">{v}</Tag>
+        <span style={{ whiteSpace: 'nowrap' }}>
+          <Tag color={providerColors[v] || 'arcoblue'} size="small">{v}</Tag>
+        </span>
       ),
     },
     {
       title: '模型',
       dataIndex: 'model',
-      width: 120,
+      width: 160,
+      ellipsis: true,
       render: (v: string) => (
-        <span style={{ fontSize: 12 }}>{v || '—'}</span>
+        <Tooltip content={v} disabled={!v}>
+          <span style={{ fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
+            {v || '—'}
+          </span>
+        </Tooltip>
       ),
     },
     {
@@ -211,19 +218,22 @@ export default function RequestList() {
     {
       title: '耗时',
       dataIndex: 'duration_ms',
-      width: 70,
-      render: (v: number) => <span style={{ fontSize: 12 }}>{v}ms</span>,
+      width: 80,
+      render: (v: number) => <span style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{v}ms</span>,
     },
     {
       title: '流式',
       dataIndex: 'is_streaming',
       width: 52,
       render: (v: boolean) => (
-        <Tag color={v ? 'cyan' : 'gray'} size="small">{v ? 'SSE' : '—'}</Tag>
+        <span style={{ whiteSpace: 'nowrap' }}>
+          <Tag color={v ? 'cyan' : 'gray'} size="small">{v ? 'SSE' : '—'}</Tag>
+        </span>
       ),
     },
     {
       title: '对话预览',
+      minWidth: 200,
       render: (_: unknown, row: APIRequestSummary) => (
         <PreviewLines reqBody={row.req_body} respBody={row.resp_body} />
       ),
@@ -249,6 +259,7 @@ export default function RequestList() {
         loading={loading}
         rowKey="id"
         size="small"
+        scroll={{ x: 874 }}
         expandedRowKeys={expandedKeys}
         onExpandedRowsChange={(keys) => setExpandedKeys(keys as string[])}
         expandedRowRender={(record: APIRequestSummary) => (
