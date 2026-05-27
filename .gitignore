@@ -24,3 +24,5 @@ frontend/.vite/
 .vscode/
 *.swp
 *.swo
+CLAUDE.md
+.claude/

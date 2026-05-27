@@ -3,6 +3,7 @@
 ## Language
 - 使用中文回复
 - Speak Chinese
+- Commit Message写中文
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
