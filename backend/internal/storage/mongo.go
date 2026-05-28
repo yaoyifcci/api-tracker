@@ -42,6 +42,7 @@ func (s *Store) ensureIndexes() {
 		{Keys: bson.D{{Key: "timestamp", Value: -1}}},
 		{Keys: bson.D{{Key: "provider", Value: 1}, {Key: "timestamp", Value: -1}}},
 		{Keys: bson.D{{Key: "status_code", Value: 1}, {Key: "timestamp", Value: -1}}},
+		{Keys: bson.D{{Key: "req_headers.X-Claude-Code-Session-Id", Value: 1}, {Key: "timestamp", Value: -1}}},
 	})
 }
 
@@ -66,6 +67,7 @@ type RequestSummary struct {
 	DurationMS       int64     `bson:"duration_ms"       json:"duration_ms"`
 	IsStreaming      bool      `bson:"is_streaming"      json:"is_streaming"`
 	RespID           string    `bson:"resp_id"           json:"resp_id"`
+	SessionID        string    `bson:"session_id"        json:"session_id"`
 	ToolUseNames     []string  `bson:"tool_names"        json:"tool_names"`
 	PreviewQuestion  string    `bson:"preview_question"  json:"preview_question"`
 	PreviewAnswer    string    `bson:"preview_answer"    json:"preview_answer"`
@@ -86,6 +88,7 @@ type ListFilter struct {
 	StatusClass string // "2xx" / "3xx" / "4xx" / "5xx"
 	StartTime   time.Time
 	EndTime     time.Time
+	SessionID   string
 }
 
 func (f ListFilter) build() bson.D {
@@ -121,6 +124,9 @@ func (f ListFilter) build() bson.D {
 		}
 		and = append(and, bson.D{{Key: "timestamp", Value: rng}})
 	}
+	if f.SessionID != "" {
+		and = append(and, bson.D{{Key: "req_headers.X-Claude-Code-Session-Id", Value: f.SessionID}})
+	}
 	if len(and) == 0 {
 		return bson.D{}
 	}
@@ -144,8 +150,10 @@ func (s *Store) List(ctx context.Context, f ListFilter, page, limit int) (*ListR
 		bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: -1}}}},
 		bson.D{{Key: "$skip", Value: int64((page - 1) * limit)}},
 		bson.D{{Key: "$limit", Value: int64(limit)}},
-		// extract resp_body.id for all records (including those without a separate resp_id field)
-		bson.D{{Key: "$addFields", Value: bson.D{{Key: "resp_id", Value: "$resp_body.id"}}}},
+		bson.D{{Key: "$addFields", Value: bson.D{
+			{Key: "resp_id", Value: "$resp_body.id"},
+			{Key: "session_id", Value: "$req_headers.X-Claude-Code-Session-Id"},
+		}}},
 		bson.D{{Key: "$project", Value: bson.D{
 			{Key: "req_body", Value: 0},
 			{Key: "resp_body", Value: 0},

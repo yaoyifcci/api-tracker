@@ -12,6 +12,7 @@ export interface APIRequestSummary {
   duration_ms: number
   is_streaming: boolean
   resp_id: string
+  session_id: string
   tool_names: string[]
   preview_question: string
   preview_answer: string
@@ -48,6 +49,7 @@ export interface ListFilterParams {
   status_class?: '2xx' | '3xx' | '4xx' | '5xx'
   start_time?: string
   end_time?: string
+  session_id?: string
 }
 
 export interface EndpointInfo {

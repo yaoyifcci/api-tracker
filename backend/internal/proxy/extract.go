@@ -515,14 +515,15 @@ func extractTextContent(content interface{}) string {
 		return s
 	}
 	if arr, ok := content.([]interface{}); ok {
-		for _, p := range arr {
-			part, ok := p.(map[string]interface{})
+		// walk backwards: real user text is at the end; injected context (e.g. system-reminder) is at the front
+		for i := len(arr) - 1; i >= 0; i-- {
+			part, ok := arr[i].(map[string]interface{})
 			if !ok {
 				continue
 			}
 			switch part["type"] {
 			case "text":
-				if s, ok := part["text"].(string); ok {
+				if s, ok := part["text"].(string); ok && s != "" {
 					return s
 				}
 			case "tool_result":

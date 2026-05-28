@@ -53,6 +53,7 @@ func (a *API) ListRequests(c *gin.Context) {
 	if t, ok := parseTime(c.Query("end_time")); ok {
 		f.EndTime = t
 	}
+	f.SessionID = c.Query("session_id")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

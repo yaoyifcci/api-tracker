@@ -247,6 +247,28 @@ export default function RequestList() {
       ),
     },
     {
+      title: 'Session',
+      dataIndex: 'session_id',
+      width: 110,
+      headerCellStyle: { whiteSpace: 'nowrap' },
+      render: (v: string) => {
+        if (!v) return <span style={{ color: '#c9cdd4' }}>—</span>
+        const isActive = filter.session_id === v
+        return (
+          <Tooltip content={v} position="top">
+            <Tag
+              size="small"
+              color={isActive ? 'arcoblue' : 'gray'}
+              style={{ fontFamily: 'monospace', cursor: 'pointer', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block' }}
+              onClick={(e) => { e.stopPropagation(); updateFilter({ session_id: isActive ? undefined : v }) }}
+            >
+              {v.slice(0, 8)}
+            </Tag>
+          </Tooltip>
+        )
+      },
+    },
+    {
       title: '响应 ID',
       dataIndex: 'resp_id',
       width: 180,
@@ -321,6 +343,15 @@ export default function RequestList() {
           value={filter.start_time && filter.end_time ? [filter.start_time, filter.end_time] : undefined}
           onChange={onRangeChange}
         />
+        {filter.session_id && (
+          <Tag
+            closable
+            color="arcoblue"
+            onClose={() => updateFilter({ session_id: undefined })}
+          >
+            Session: {filter.session_id.slice(0, 8)}…
+          </Tag>
+        )}
         {hasFilter && (
           <Button size="small" type="text" onClick={resetFilter}>重置</Button>
         )}

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -29,6 +30,7 @@ type Handler struct {
 	defaultEP   *config.Endpoint
 	store       *storage.Store
 	client      *http.Client
+	debug       bool
 }
 
 func NewHandler(cfg *config.Config, store *storage.Store) *Handler {
@@ -37,6 +39,7 @@ func NewHandler(cfg *config.Config, store *storage.Store) *Handler {
 		defaultEP:   cfg.DefaultEndpoint(),
 		store:       store,
 		client:      &http.Client{Timeout: 120 * time.Second},
+		debug:       cfg.Debug,
 	}
 }
 
@@ -99,7 +102,7 @@ func (h *Handler) Handle(c *gin.Context) {
 		}
 	}
 	// inject configured key only when the client did not supply one
-	if epType == config.TypeAnthropic {
+	if epType == config.TypeAnthropic && !ep.BearerAuth {
 		if outReq.Header.Get("x-api-key") == "" && ep.Key != "" {
 			outReq.Header.Set("x-api-key", ep.Key)
 		}
@@ -108,8 +111,12 @@ func (h *Handler) Handle(c *gin.Context) {
 			outReq.Header.Set("anthropic-version", "2023-06-01")
 		}
 	} else {
+		outReq.Header.Del("x-api-key")
 		if outReq.Header.Get("Authorization") == "" && ep.Key != "" {
 			outReq.Header.Set("Authorization", "Bearer "+ep.Key)
+		}
+		if epType == config.TypeAnthropic && outReq.Header.Get("anthropic-version") == "" {
+			outReq.Header.Set("anthropic-version", "2023-06-01")
 		}
 	}
 	// strip hop-by-hop
@@ -131,11 +138,52 @@ func (h *Handler) Handle(c *gin.Context) {
 		}
 	}
 
+	if h.debug {
+		h.logDebugRequest(outReq, outBodyBytes)
+	}
+
 	if streaming {
 		h.forwardStream(c, outReq, ep.Name, epType, modelName, reqBodyMap, storedHeaders, targetURL, start)
 	} else {
 		h.forwardNonStream(c, outReq, ep.Name, epType, modelName, reqBodyMap, storedHeaders, targetURL, start)
 	}
+}
+
+func (h *Handler) logDebugRequest(req *http.Request, body []byte) {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("[DEBUG] --> %s %s\n", req.Method, req.URL.String()))
+	for k, vals := range req.Header {
+		lower := strings.ToLower(k)
+		if lower == "authorization" || lower == "x-api-key" {
+			sb.WriteString(fmt.Sprintf("  %s: ***\n", k))
+		} else {
+			sb.WriteString(fmt.Sprintf("  %s: %s\n", k, strings.Join(vals, ", ")))
+		}
+	}
+	if len(body) > 0 {
+		preview := body
+		if len(preview) > 500 {
+			preview = append(preview[:500], []byte("...[truncated]")...)
+		}
+		sb.WriteString(fmt.Sprintf("  body: %s\n", preview))
+	}
+	log.Print(sb.String())
+}
+
+func (h *Handler) logDebugResponse(resp *http.Response, body []byte) {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("[DEBUG] <-- %d\n", resp.StatusCode))
+	for k, vals := range resp.Header {
+		sb.WriteString(fmt.Sprintf("  %s: %s\n", k, strings.Join(vals, ", ")))
+	}
+	if len(body) > 0 {
+		preview := body
+		if len(preview) > 500 {
+			preview = append(preview[:500], []byte("...[truncated]")...)
+		}
+		sb.WriteString(fmt.Sprintf("  body: %s\n", preview))
+	}
+	log.Print(sb.String())
 }
 
 func (h *Handler) resolveEndpoint(c *gin.Context) (*config.Endpoint, string) {
@@ -147,6 +195,11 @@ func (h *Handler) resolveEndpoint(c *gin.Context) (*config.Endpoint, string) {
 			return nil, ""
 		}
 		return ep, c.Param("path")
+	}
+
+	// NoRoute fallback: path has no /v1/ prefix, prepend it
+	if path, ok := c.Get("fallback_path"); ok {
+		return h.defaultEP, "/v1" + path.(string)
 	}
 
 	// /v1/*path — all paths go to the single default endpoint
@@ -179,6 +232,10 @@ func (h *Handler) forwardNonStream(
 	var respBodyMap map[string]interface{}
 	if len(respBodyBytes) > 0 {
 		_ = json.Unmarshal(respBodyBytes, &respBodyMap)
+	}
+
+	if h.debug {
+		h.logDebugResponse(resp, respBodyBytes)
 	}
 
 	usage := extractUsageFromResponse(respBodyMap, epType)

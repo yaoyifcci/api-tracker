@@ -49,6 +49,12 @@ func main() {
 	// proxy routes — /v1/* uses default endpoint
 	r.Any("/v1/*path", proxyHandler.Handle)
 
+	// fallback: paths without /v1/ prefix (e.g. /models, /chat/completions) → prepend /v1/ and forward to default endpoint
+	r.NoRoute(func(c *gin.Context) {
+		c.Set("fallback_path", c.Request.URL.Path)
+		proxyHandler.Handle(c)
+	})
+
 	// proxy routes — /:name/* uses named endpoint
 	// Register known endpoint names to avoid catching /api/* and /v1/*
 	for _, ep := range cfg.Endpoints {

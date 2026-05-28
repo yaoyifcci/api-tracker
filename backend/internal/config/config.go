@@ -19,10 +19,11 @@ const (
 )
 
 type Endpoint struct {
-	Name string `yaml:"name"`
-	URL  string `yaml:"url"`
-	Key  string `yaml:"key"`
-	Type string `yaml:"type"` // openai | anthropic | openai_responses (default: openai)
+	Name       string `yaml:"name"`
+	URL        string `yaml:"url"`
+	Key        string `yaml:"key"`
+	Type       string `yaml:"type"`        // openai | anthropic | openai_responses (default: openai)
+	BearerAuth bool   `yaml:"bearer_auth"` // use Authorization: Bearer instead of x-api-key (for anthropic-type endpoints behind OpenAI-compatible gateways)
 }
 
 func (e *Endpoint) ResolvedType() string {
@@ -38,6 +39,7 @@ type Config struct {
 	MongoDB   string     `yaml:"mongodb_db"`
 	Default   string     `yaml:"default_endpoint"`
 	Endpoints []Endpoint `yaml:"endpoints"`
+	Debug     bool       `yaml:"debug"`
 }
 
 // Load merges: config.yaml → <base>.local.yaml → environment variables.
@@ -135,6 +137,9 @@ func applyEnv(cfg *Config) {
 	}
 	if v := os.Getenv("APITRACKER_DEFAULT_ENDPOINT"); v != "" {
 		cfg.Default = v
+	}
+	if v := os.Getenv("APITRACKER_DEBUG"); v == "true" || v == "1" {
+		cfg.Debug = true
 	}
 	for i, ep := range cfg.Endpoints {
 		prefix := "APITRACKER_ENDPOINT_" + normalizeEnvName(ep.Name)

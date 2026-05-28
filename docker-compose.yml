@@ -7,6 +7,7 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+      - ./mongo/init.js:/docker-entrypoint-initdb.d/init.js:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
@@ -23,11 +24,10 @@ services:
     environment:
       - APITRACKER_MONGO_URI=mongodb://mongodb:27017
       - APITRACKER_MONGO_DB=api-tracker
-    env_file:
-      - path: .env
-        required: false
+      - APITRACKER_DEBUG=true
     volumes:
       - ./backend/config.yaml:/app/config.yaml:ro
+      - ./backend/config.local.yaml:/app/config.local.yaml:ro
     depends_on:
       mongodb:
         condition: service_healthy
