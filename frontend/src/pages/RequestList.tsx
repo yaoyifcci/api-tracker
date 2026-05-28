@@ -231,15 +231,33 @@ export default function RequestList() {
       render: (v: number) => <span style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{v}ms</span>,
     },
     {
-      title: '流式',
-      dataIndex: 'is_streaming',
-      width: 60,
+      title: '标签',
+      width: 80,
       headerCellStyle: { whiteSpace: 'nowrap' },
-      render: (v: boolean) => (
-        <span style={{ whiteSpace: 'nowrap' }}>
-          <Tag color={v ? 'cyan' : 'gray'} size="small">{v ? 'SSE' : '—'}</Tag>
+      render: (_: unknown, row: APIRequestSummary) => (
+        <span style={{ display: 'flex', gap: 3, flexWrap: 'nowrap' }}>
+          {row.is_streaming && <Tag color="cyan" size="small">SSE</Tag>}
+          {row.tool_names?.length > 0 && (
+            <Tooltip content={row.tool_names.join(', ')} position="top">
+              <Tag color="orange" size="small">🔧</Tag>
+            </Tooltip>
+          )}
+          {!row.is_streaming && !row.tool_names?.length && <span style={{ color: '#c9cdd4' }}>—</span>}
         </span>
       ),
+    },
+    {
+      title: '响应 ID',
+      dataIndex: 'resp_id',
+      width: 180,
+      headerCellStyle: { whiteSpace: 'nowrap' },
+      render: (v: string) => v ? (
+        <Tooltip content={v} position="top">
+          <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#4e5969', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 168 }}>
+            {v}
+          </span>
+        </Tooltip>
+      ) : <span style={{ color: '#c9cdd4' }}>—</span>,
     },
     {
       title: '对话预览',
@@ -313,7 +331,7 @@ export default function RequestList() {
         loading={loading}
         rowKey="id"
         size="small"
-        scroll={{ x: 1020 }}
+        scroll={{ x: 1200 }}
         expandedRowKeys={expandedKeys}
         onExpandedRowsChange={(keys) => setExpandedKeys(keys as string[])}
         expandedRowRender={(record: APIRequestSummary) => (

@@ -65,6 +65,8 @@ type RequestSummary struct {
 	CacheWriteTokens int       `bson:"cache_write_tokens" json:"cache_write_tokens"`
 	DurationMS       int64     `bson:"duration_ms"       json:"duration_ms"`
 	IsStreaming      bool      `bson:"is_streaming"      json:"is_streaming"`
+	RespID           string    `bson:"resp_id"           json:"resp_id"`
+	ToolUseNames     []string  `bson:"tool_names"        json:"tool_names"`
 	PreviewQuestion  string    `bson:"preview_question"  json:"preview_question"`
 	PreviewAnswer    string    `bson:"preview_answer"    json:"preview_answer"`
 }
@@ -137,21 +139,24 @@ func (s *Store) List(ctx context.Context, f ListFilter, page, limit int) (*ListR
 	if err != nil {
 		return nil, err
 	}
-	projection := bson.D{
-		{Key: "req_body", Value: 0},
-		{Key: "resp_body", Value: 0},
-		{Key: "req_headers", Value: 0},
-		{Key: "resp_headers", Value: 0},
-		{Key: "target_url", Value: 0},
-		{Key: "method", Value: 0},
-		{Key: "path", Value: 0},
+	pipeline := bson.A{
+		bson.D{{Key: "$match", Value: filter}},
+		bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: -1}}}},
+		bson.D{{Key: "$skip", Value: int64((page - 1) * limit)}},
+		bson.D{{Key: "$limit", Value: int64(limit)}},
+		// extract resp_body.id for all records (including those without a separate resp_id field)
+		bson.D{{Key: "$addFields", Value: bson.D{{Key: "resp_id", Value: "$resp_body.id"}}}},
+		bson.D{{Key: "$project", Value: bson.D{
+			{Key: "req_body", Value: 0},
+			{Key: "resp_body", Value: 0},
+			{Key: "req_headers", Value: 0},
+			{Key: "resp_headers", Value: 0},
+			{Key: "target_url", Value: 0},
+			{Key: "method", Value: 0},
+			{Key: "path", Value: 0},
+		}}},
 	}
-	opts := options.Find().
-		SetSort(bson.D{{Key: "timestamp", Value: -1}}).
-		SetSkip(int64((page - 1) * limit)).
-		SetLimit(int64(limit)).
-		SetProjection(projection)
-	cursor, err := s.coll.Find(ctx, filter, opts)
+	cursor, err := s.coll.Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, err
 	}

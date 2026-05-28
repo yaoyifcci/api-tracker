@@ -8,6 +8,41 @@ import type { APIRequestDetail } from '../types'
 const { Item: CollapseItem } = Collapse
 const { Row, Col } = Grid
 
+interface ToolCall {
+  name: string
+  id?: string
+  input?: unknown
+}
+
+function extractToolCalls(respBody: unknown): ToolCall[] {
+  if (!respBody || typeof respBody !== 'object') return []
+  const body = respBody as Record<string, unknown>
+  const calls: ToolCall[] = []
+  // Anthropic: content[].type === 'tool_use'
+  if (Array.isArray(body.content)) {
+    for (const block of body.content as Record<string, unknown>[]) {
+      if (block?.type === 'tool_use') {
+        calls.push({ name: block.name as string, id: block.id as string | undefined, input: block.input })
+      }
+    }
+  }
+  // OpenAI: choices[0].message.tool_calls
+  if (Array.isArray(body.choices) && body.choices.length > 0) {
+    const msg = (body.choices[0] as Record<string, unknown>)?.message as Record<string, unknown> | undefined
+    if (Array.isArray(msg?.tool_calls)) {
+      for (const tc of msg.tool_calls as Record<string, unknown>[]) {
+        const fn = tc?.function as Record<string, unknown> | undefined
+        if (fn?.name) {
+          let input: unknown = fn.arguments
+          try { input = JSON.parse(fn.arguments as string) } catch {}
+          calls.push({ name: fn.name as string, id: tc.id as string | undefined, input })
+        }
+      }
+    }
+  }
+  return calls
+}
+
 interface Props {
   id: string
 }
@@ -298,6 +333,36 @@ export default function RequestDetailInline({ id }: Props) {
           </Collapse>
         </Col>
       </Row>
+
+      {extractToolCalls(detail.resp_body).length > 0 && (
+        <Collapse bordered={false} style={{ background: '#fff', marginTop: 4 }}>
+          <CollapseItem
+            header={<span>🔧 工具调用（{extractToolCalls(detail.resp_body).length}）</span>}
+            name="tool-calls"
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '4px 0' }}>
+              {extractToolCalls(detail.resp_body).map((tc, i) => (
+                <div key={i} style={{ border: '1px solid #e5e6eb', borderRadius: 6, padding: '8px 12px', background: '#fafafa' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: tc.input ? 6 : 0 }}>
+                    <Tag color="orange" size="small">🔧 {tc.name}</Tag>
+                    {tc.id && <span style={{ fontSize: 11, color: '#86909c', fontFamily: 'monospace' }}>{tc.id}</span>}
+                  </div>
+                  {tc.input !== undefined && (
+                    <ReactJsonView
+                      src={typeof tc.input === 'object' && tc.input !== null ? tc.input as object : { value: tc.input }}
+                      name={false}
+                      collapsed={1}
+                      enableClipboard
+                      displayDataTypes={false}
+                      style={{ fontSize: 12 }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </CollapseItem>
+        </Collapse>
+      )}
 
       <Row gutter={8} style={{ marginTop: 4 }}>
         <Col span={12}>

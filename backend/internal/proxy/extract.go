@@ -161,12 +161,21 @@ func parseOpenAISSEBuffer(buf []byte) (map[string]interface{}, UsageInfo) {
 	return respBody, u
 }
 
+type toolUseBlock struct {
+	id    string
+	name  string
+	input strings.Builder
+}
+
 // parseAnthropicSSEBuffer handles Anthropic Messages API streaming.
 func parseAnthropicSSEBuffer(buf []byte) (map[string]interface{}, UsageInfo) {
 	var contentParts []string
 	var u UsageInfo
 	var messageID, modelName string
 	var currentEvent string
+	// track tool_use blocks by block index
+	toolBlocks := map[int]*toolUseBlock{}
+	var toolBlockOrder []int
 
 	scanner := bufio.NewScanner(bytes.NewReader(buf))
 	for scanner.Scan() {
@@ -197,10 +206,32 @@ func parseAnthropicSSEBuffer(buf []byte) (map[string]interface{}, UsageInfo) {
 					u.CacheWrite = toInt(usage["cache_creation_input_tokens"])
 				}
 			}
+		case "content_block_start":
+			if cb, ok := chunk["content_block"].(map[string]interface{}); ok {
+				if cbType, _ := cb["type"].(string); cbType == "tool_use" {
+					idx := toInt(chunk["index"])
+					tb := &toolUseBlock{
+						id:   func() string { s, _ := cb["id"].(string); return s }(),
+						name: func() string { s, _ := cb["name"].(string); return s }(),
+					}
+					toolBlocks[idx] = tb
+					toolBlockOrder = append(toolBlockOrder, idx)
+				}
+			}
 		case "content_block_delta":
 			if delta, ok := chunk["delta"].(map[string]interface{}); ok {
-				if text, ok := delta["text"].(string); ok {
-					contentParts = append(contentParts, text)
+				switch delta["type"] {
+				case "text_delta":
+					if text, ok := delta["text"].(string); ok {
+						contentParts = append(contentParts, text)
+					}
+				case "input_json_delta":
+					if partial, ok := delta["partial_json"].(string); ok {
+						idx := toInt(chunk["index"])
+						if tb, ok := toolBlocks[idx]; ok {
+							tb.input.WriteString(partial)
+						}
+					}
 				}
 			}
 		case "message_delta":
@@ -213,15 +244,33 @@ func parseAnthropicSSEBuffer(buf []byte) (map[string]interface{}, UsageInfo) {
 	u.Total = u.Prompt + u.Completion
 	fullContent := strings.Join(contentParts, "")
 
+	var contentBlocks []interface{}
+	if fullContent != "" {
+		contentBlocks = append(contentBlocks, map[string]interface{}{"type": "text", "text": fullContent})
+	}
+	for _, idx := range toolBlockOrder {
+		tb := toolBlocks[idx]
+		block := map[string]interface{}{"type": "tool_use", "id": tb.id, "name": tb.name}
+		if inputStr := tb.input.String(); inputStr != "" {
+			var inputObj interface{}
+			if json.Unmarshal([]byte(inputStr), &inputObj) == nil {
+				block["input"] = inputObj
+			} else {
+				block["input"] = inputStr
+			}
+		}
+		contentBlocks = append(contentBlocks, block)
+	}
+	if len(contentBlocks) == 0 {
+		contentBlocks = []interface{}{map[string]interface{}{"type": "text", "text": ""}}
+	}
+
 	respBody := map[string]interface{}{
-		"id":    messageID,
-		"type":  "message",
-		"model": modelName,
-		"role":  "assistant",
-		"content": []interface{}{map[string]interface{}{
-			"type": "text",
-			"text": fullContent,
-		}},
+		"id":      messageID,
+		"type":    "message",
+		"model":   modelName,
+		"role":    "assistant",
+		"content": contentBlocks,
 		"usage": map[string]interface{}{
 			"input_tokens":                u.Prompt,
 			"output_tokens":               u.Completion,
@@ -300,7 +349,7 @@ func parseOpenAIResponsesSSEBuffer(buf []byte) (map[string]interface{}, UsageInf
 	return respBody, u
 }
 
-// extractPreviewQuestion returns the last user message text from a request body.
+// extractPreviewQuestion returns the last user text message, skipping tool_result-only messages.
 func extractPreviewQuestion(body map[string]interface{}) string {
 	if body == nil {
 		return ""
@@ -309,20 +358,68 @@ func extractPreviewQuestion(body map[string]interface{}) string {
 	if !ok {
 		return ""
 	}
-	var lastUser map[string]interface{}
-	for _, m := range messages {
-		msg, ok := m.(map[string]interface{})
+	// Walk backwards: prefer the last user message that has actual text content.
+	// If we only find tool_result messages, fall back to the last one and show its content.
+	var lastToolResult map[string]interface{}
+	for i := len(messages) - 1; i >= 0; i-- {
+		msg, ok := messages[i].(map[string]interface{})
+		if !ok || msg["role"] != "user" {
+			continue
+		}
+		if isToolResultContent(msg["content"]) {
+			if lastToolResult == nil {
+				lastToolResult = msg
+			}
+			continue
+		}
+		return extractTextContent(msg["content"])
+	}
+	if lastToolResult != nil {
+		return extractToolResultPreview(lastToolResult["content"])
+	}
+	return ""
+}
+
+// isToolResultContent reports whether content is an array consisting entirely of tool_result blocks.
+func isToolResultContent(content interface{}) bool {
+	arr, ok := content.([]interface{})
+	if !ok || len(arr) == 0 {
+		return false
+	}
+	for _, p := range arr {
+		part, ok := p.(map[string]interface{})
+		if !ok || part["type"] != "tool_result" {
+			return false
+		}
+	}
+	return true
+}
+
+// extractToolResultPreview returns a compact one-line preview for tool_result content.
+func extractToolResultPreview(content interface{}) string {
+	arr, ok := content.([]interface{})
+	if !ok {
+		return extractTextContent(content)
+	}
+	var parts []string
+	for _, p := range arr {
+		part, ok := p.(map[string]interface{})
 		if !ok {
 			continue
 		}
-		if msg["role"] == "user" {
-			lastUser = msg
+		text := extractTextContent(part["content"])
+		if text != "" {
+			// trim to keep it short
+			if len(text) > 60 {
+				text = text[:60] + "…"
+			}
+			parts = append(parts, text)
 		}
 	}
-	if lastUser == nil {
-		return ""
+	if len(parts) == 0 {
+		return "(工具结果)"
 	}
-	return extractTextContent(lastUser["content"])
+	return "[工具结果] " + strings.Join(parts, " | ")
 }
 
 // extractPreviewAnswer returns the assistant response text from a response body.
@@ -340,14 +437,27 @@ func extractPreviewAnswer(body map[string]interface{}) string {
 			}
 		}
 	}
-	// Anthropic: content[0].text
+	// Anthropic: scan content blocks for text, fall back to tool_use names
 	if content, ok := body["content"].([]interface{}); ok && len(content) > 0 {
-		if part, ok := content[0].(map[string]interface{}); ok {
+		var toolNames []string
+		for _, item := range content {
+			part, ok := item.(map[string]interface{})
+			if !ok {
+				continue
+			}
 			if part["type"] == "text" {
-				if s, ok := part["text"].(string); ok {
+				if s, ok := part["text"].(string); ok && s != "" {
 					return s
 				}
 			}
+			if part["type"] == "tool_use" {
+				if name, ok := part["name"].(string); ok && name != "" {
+					toolNames = append(toolNames, name)
+				}
+			}
+		}
+		if len(toolNames) > 0 {
+			return "(工具调用: " + strings.Join(toolNames, ", ") + ")"
 		}
 	}
 	// OpenAI Responses: content (string)
@@ -355,6 +465,49 @@ func extractPreviewAnswer(body map[string]interface{}) string {
 		return s
 	}
 	return ""
+}
+
+// extractToolUseNames returns tool names called in a response body (Anthropic + OpenAI).
+func extractToolUseNames(body map[string]interface{}) []string {
+	if body == nil {
+		return nil
+	}
+	var names []string
+	// Anthropic: content[].type == "tool_use"
+	if content, ok := body["content"].([]interface{}); ok {
+		for _, item := range content {
+			part, ok := item.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if part["type"] == "tool_use" {
+				if name, ok := part["name"].(string); ok && name != "" {
+					names = append(names, name)
+				}
+			}
+		}
+	}
+	// OpenAI chat: choices[0].message.tool_calls[].function.name
+	if choices, ok := body["choices"].([]interface{}); ok && len(choices) > 0 {
+		if choice, ok := choices[0].(map[string]interface{}); ok {
+			if msg, ok := choice["message"].(map[string]interface{}); ok {
+				if toolCalls, ok := msg["tool_calls"].([]interface{}); ok {
+					for _, tc := range toolCalls {
+						tcMap, ok := tc.(map[string]interface{})
+						if !ok {
+							continue
+						}
+						if fn, ok := tcMap["function"].(map[string]interface{}); ok {
+							if name, ok := fn["name"].(string); ok && name != "" {
+								names = append(names, name)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return names
 }
 
 func extractTextContent(content interface{}) string {
@@ -367,8 +520,13 @@ func extractTextContent(content interface{}) string {
 			if !ok {
 				continue
 			}
-			if part["type"] == "text" {
+			switch part["type"] {
+			case "text":
 				if s, ok := part["text"].(string); ok {
+					return s
+				}
+			case "tool_result":
+				if s := extractTextContent(part["content"]); s != "" {
 					return s
 				}
 			}

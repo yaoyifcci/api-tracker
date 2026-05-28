@@ -104,6 +104,9 @@ func (h *Handler) Handle(c *gin.Context) {
 			outReq.Header.Set("x-api-key", ep.Key)
 		}
 		outReq.Header.Del("Authorization")
+		if outReq.Header.Get("anthropic-version") == "" {
+			outReq.Header.Set("anthropic-version", "2023-06-01")
+		}
 	} else {
 		if outReq.Header.Get("Authorization") == "" && ep.Key != "" {
 			outReq.Header.Set("Authorization", "Bearer "+ep.Key)
@@ -199,6 +202,7 @@ func (h *Handler) forwardNonStream(
 	dur := time.Since(start).Milliseconds()
 	previewQ := extractPreviewQuestion(reqBodyMap)
 	previewA := extractPreviewAnswer(respBodyMap)
+	toolNames := extractToolUseNames(respBodyMap)
 	go func() {
 		var respInterface interface{} = respBodyMap
 		if respInterface == nil {
@@ -224,6 +228,7 @@ func (h *Handler) forwardNonStream(
 			CacheWriteTokens: usage.CacheWrite,
 			DurationMS:       dur,
 			IsStreaming:      false,
+			ToolUseNames:     toolNames,
 			PreviewQuestion:  previewQ,
 			PreviewAnswer:    previewA,
 		})
@@ -320,6 +325,7 @@ func (h *Handler) forwardStream(
 			CacheWriteTokens: usage.CacheWrite,
 			DurationMS:       dur,
 			IsStreaming:      true,
+			ToolUseNames:     extractToolUseNames(respBody),
 			PreviewQuestion:  previewQ,
 			PreviewAnswer:    extractPreviewAnswer(respBody),
 		})

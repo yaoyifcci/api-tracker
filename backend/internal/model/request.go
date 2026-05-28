@@ -22,6 +22,7 @@ type APIRequest struct {
 	CacheWriteTokens int               `bson:"cache_write_tokens" json:"cache_write_tokens"`
 	DurationMS       int64             `bson:"duration_ms"       json:"duration_ms"`
 	IsStreaming      bool              `bson:"is_streaming"      json:"is_streaming"`
+	ToolUseNames     []string          `bson:"tool_names"        json:"tool_names"`
 	PreviewQuestion  string            `bson:"preview_question"  json:"preview_question"`
 	PreviewAnswer    string            `bson:"preview_answer"    json:"preview_answer"`
 }

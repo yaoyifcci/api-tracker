@@ -65,20 +65,15 @@ React frontend (:5173 dev / :3000 Docker)
 
 ### Proxy routes (registered in `main.go`)
 
-Gin registers `/v1/*path` as a single wildcard catch-all. Routing to the correct endpoint is done inside `resolveEndpoint` based on the path prefix — **only explicitly listed paths are forwarded; anything else returns 404**.
+Gin registers `/v1/*path` as a single wildcard catch-all. All `/v1/*` traffic goes to the single `default_endpoint`; the endpoint's `type` field determines auth headers and SSE parsing (no per-path routing).
 
-| Incoming path prefix | Config field | Notes |
-|----------------------|-------------|-------|
-| `/v1/chat/completions` | `default_endpoint` | OpenAI Chat Completions |
-| `/v1/messages` | `default_anthropic_endpoint` | Anthropic Messages API |
-| `/v1/responses` | `default_openai_responses_endpoint` | OpenAI Responses API |
-| `/<name>/*` | named endpoint in `endpoints[]` | explicit override, any path |
-| `/api/*` | — | REST API for the frontend |
-| anything else under `/v1/` | — | 404 `{"error":"unknown endpoint"}` |
+| Incoming path prefix | Notes |
+|----------------------|-------|
+| `/v1/*` | forwarded to `default_endpoint` (any path) |
+| `/<name>/*` | named endpoint in `endpoints[]`; registered individually at startup |
+| `/api/*` | REST API for the frontend |
 
 Named endpoint routes (`/<name>/*`) are registered individually at startup (not via a generic `/:name` wildcard) to avoid conflicting with `/api/*` and `/v1/*`.
-
-`resolveEndpoint` uses `strings.HasPrefix` so suffixes like `/v1/chat/completions/stream` or `/v1/messages/batches` route correctly.
 
 ### SSE streaming — critical constraint
 
@@ -106,10 +101,8 @@ Priority (highest wins): **env vars** → `config.local.yaml` → `config.yaml`
 - `config.local.yaml` — gitignored; overlay keys for local development
 - Env vars: `APITRACKER_ENDPOINT_{NAME}_KEY`, `APITRACKER_ENDPOINT_{NAME}_URL`, `APITRACKER_MONGO_URI`, etc.
   - Name normalization: `openai-responses` → `OPENAI_RESPONSES`
-- Default endpoints are set via top-level fields in `config.yaml`:
-  - `default_endpoint` — used for `/v1/chat/completions`
-  - `default_anthropic_endpoint` — used for `/v1/messages`
-  - `default_openai_responses_endpoint` — used for `/v1/responses`
+- `default_endpoint` — single default; all `/v1/*` requests go here; **no per-path routing**
+- `DefaultAnthropic` / `DefaultOpenAIResponses` fields **do not exist** — removed; type is determined by the endpoint's `type` field, not by path
 
 ### Frontend components
 

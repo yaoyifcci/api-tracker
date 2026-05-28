@@ -11,6 +11,8 @@ export interface APIRequestSummary {
   cache_write_tokens: number
   duration_ms: number
   is_streaming: boolean
+  resp_id: string
+  tool_names: string[]
   preview_question: string
   preview_answer: string
 }
