@@ -2,6 +2,8 @@
 
 自托管的 AI API 代理工具，拦截并记录发往 OpenAI / Anthropic / 任意兼容接口的请求，通过 React 前端可视化浏览历史与 Token 消耗。
 
+**GitHub 项目描述：** 自托管 AI API 代理与请求追踪工具，支持 OpenAI、Anthropic 及兼容接口。
+
 [English](README.md)
 
 ## 功能特性
@@ -135,3 +137,7 @@ make dev     # 本地同时启动后端和前端
 - **前端：** React 18、Vite、Arco Design、TypeScript
 - **存储：** MongoDB
 - **部署：** Docker Compose
+
+## 开源协议
+
+本项目基于 [MIT License](LICENSE) 开源。

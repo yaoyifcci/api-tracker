@@ -2,6 +2,8 @@
 
 A self-hosted AI API proxy that intercepts, records, and displays requests to OpenAI / Anthropic / any compatible endpoint.
 
+**GitHub description:** Self-hosted AI API proxy and request tracker for OpenAI, Anthropic, and compatible endpoints.
+
 [中文文档](README.zh.md)
 
 ## Features
@@ -137,3 +139,7 @@ make dev     # start backend + frontend locally
 - **Frontend:** React 18, Vite, Arco Design, TypeScript
 - **Storage:** MongoDB
 - **Deploy:** Docker Compose
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
